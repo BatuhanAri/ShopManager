@@ -1,104 +1,324 @@
 @model IEnumerable<ShopManager.Models.DailyTurnover>
 @{
-    ViewData["Title"] = "Günlük Ciro Kayıtları";
-    var total = Model.Sum(t => t.TotalAmount);
+    ViewData["Title"] = "Ciro Kayıtları";
+
+    // Filter state
+    var selectedYear  = ViewBag.SelectedYear  as int?;
+    var selectedMonth = ViewBag.SelectedMonth as int?;
+    var startDate     = ViewBag.StartDate     as string;
+    var endDate       = ViewBag.EndDate       as string;
+    var availableYears = ViewBag.AvailableYears as List<int> ?? new List<int>();
+
+    bool hasFilter = selectedYear.HasValue || selectedMonth.HasValue
+                     || !string.IsNullOrEmpty(startDate) || !string.IsNullOrEmpty(endDate);
+
+    // Group records by Year-Month for display
+    var grouped = Model
+        .GroupBy(t => new { t.RecordDate.ToLocalTime().Year, t.RecordDate.ToLocalTime().Month })
+        .OrderByDescending(g => g.Key.Year).ThenByDescending(g => g.Key.Month)
+        .ToList();
+
+    var trMonths = new[] { "", "Ocak","Şubat","Mart","Nisan","Mayıs","Haziran",
+                                "Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık" };
 }
 
-<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
     <h1 class="sm-page-title mb-0">
-        <i class="bi bi-cash-coin me-2 text-info"></i>Günlük Ciro Kayıtları
+        <i class="bi bi-cash-coin me-2 text-info"></i>Ciro Kayıtları
     </h1>
-    <a href="/DailyTurnover/Create" class="btn sm-btn-add px-4">
-        <i class="bi bi-plus-lg me-2"></i>Günü Kapat
-    </a>
+    <div class="d-flex gap-2">
+        <a href="/DailyTurnover/Create" class="btn sm-btn-outline px-3">
+            <i class="bi bi-calendar-plus me-1"></i>Bugünü Kapat
+        </a>
+        <a href="/DailyTurnover/Create" class="btn sm-btn-add px-3" id="btnGeçmisZ">
+            <i class="bi bi-clock-history me-1"></i>Geçmiş Z Raporu
+        </a>
+    </div>
+</div>
+
+<!-- ── Filter Panel ────────────────────────────────────────────────────────── -->
+<div class="sm-section-card mb-4">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <i class="bi bi-funnel-fill text-info"></i>
+        <span class="fw-semibold">Filtrele</span>
+        @if (hasFilter)
+        {
+            <a href="/DailyTurnover" class="badge sm-badge-critical ms-auto text-decoration-none">
+                <i class="bi bi-x-circle me-1"></i>Filtreyi Temizle
+            </a>
+        }
+    </div>
+
+    <!-- Tab switcher: Ay/Yıl vs Tarih Aralığı -->
+    <ul class="nav nav-pills sm-filter-tabs mb-3" id="filterTabs">
+        <li class="nav-item">
+            <button class="nav-link @(string.IsNullOrEmpty(startDate) && string.IsNullOrEmpty(endDate) ? "active" : "")"
+                    id="tab-month" type="button" onclick="switchTab('month')">
+                <i class="bi bi-calendar-month me-1"></i>Ay / Yıl
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(!string.IsNullOrEmpty(startDate) || !string.IsNullOrEmpty(endDate) ? "active" : "")"
+                    id="tab-range" type="button" onclick="switchTab('range')">
+                <i class="bi bi-calendar-range me-1"></i>Tarih Aralığı
+            </button>
+        </li>
+    </ul>
+
+    <!-- Month/Year filter -->
+    <form method="get" action="/DailyTurnover" id="filterFormMonth"
+          class="@(!string.IsNullOrEmpty(startDate) || !string.IsNullOrEmpty(endDate) ? "d-none" : "")">
+        <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-3">
+                <label class="form-label sm-label">Yıl</label>
+                <select name="year" class="form-select sm-input" onchange="this.form.submit()">
+                    <option value="">Tümü</option>
+                    @foreach (var y in availableYears)
+                    {
+                        if (selectedYear == y)
+                        {
+                            <option value="@y" selected>@y</option>
+                        }
+                        else
+                        {
+                            <option value="@y">@y</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label sm-label">Ay</label>
+                <select name="month" class="form-select sm-input" onchange="this.form.submit()">
+                    <option value="">Tümü</option>
+                    @for (int m = 1; m <= 12; m++)
+                    {
+                        if (selectedMonth == m)
+                        {
+                            <option value="@m" selected>@trMonths[m]</option>
+                        }
+                        else
+                        {
+                            <option value="@m">@trMonths[m]</option>
+                        }
+                    }
+                </select>
+                @if (selectedYear.HasValue)
+                {
+                    <input type="hidden" name="year" value="@selectedYear" />
+                }
+            </div>
+            <div class="col-12 col-md-3">
+                <button type="submit" class="btn sm-btn-add w-100">
+                    <i class="bi bi-search me-1"></i>Filtrele
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Date range filter -->
+    <form method="get" action="/DailyTurnover" id="filterFormRange"
+          class="@(!string.IsNullOrEmpty(startDate) || !string.IsNullOrEmpty(endDate) ? "" : "d-none")">
+        <div class="row g-2 align-items-end">
+            <div class="col-6 col-md-3">
+                <label class="form-label sm-label">Başlangıç</label>
+                <input type="date" name="startDate" class="form-control sm-input"
+                       value="@startDate" />
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label sm-label">Bitiş</label>
+                <input type="date" name="endDate" class="form-control sm-input"
+                       value="@endDate" />
+            </div>
+            <div class="col-12 col-md-3">
+                <button type="submit" class="btn sm-btn-add w-100">
+                    <i class="bi bi-search me-1"></i>Filtrele
+                </button>
+            </div>
+        </div>
+    </form>
 </div>
 
 @if (!Model.Any())
 {
-    <div class="sm-empty-state mt-5">
+    <div class="sm-empty-state mt-4">
         <i class="bi bi-cash-coin fs-1 text-white-50 d-block mb-3"></i>
-        <p class="text-white-50">Henüz ciro kaydı yok.</p>
-        <a href="/DailyTurnover/Create" class="btn sm-btn-add px-4">
-            <i class="bi bi-plus-lg me-2"></i>İlk Kaydı Ekle
+        <p class="text-white-50">
+            @(hasFilter ? "Seçilen tarih aralığında kayıt bulunamadı." : "Henüz ciro kaydı yok.")
+        </p>
+        <a href="/DailyTurnover/Create" class="btn sm-btn-add px-4 me-2">
+            <i class="bi bi-plus-lg me-2"></i>Kayıt Ekle
         </a>
+        @if (hasFilter)
+        {
+            <a href="/DailyTurnover" class="btn sm-btn-outline px-4">
+                <i class="bi bi-x-circle me-1"></i>Filtreyi Temizle
+            </a>
+        }
     </div>
 }
 else
 {
+    <!-- ── Grand Total Summary ──────────────────────────────────────────────── -->
     <div class="sm-section-card mb-4">
+        <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="bi bi-graph-up-arrow text-info"></i>
+            <span class="fw-semibold">
+                @if (hasFilter) { <text>Filtre Toplamı</text> } else { <text>Genel Toplam</text> }
+                <span class="text-white-50 fw-normal small ms-1">(@Model.Count() kayıt)</span>
+            </span>
+        </div>
         <div class="row g-2 text-center">
             <div class="col-6 col-md-3">
                 <div class="sm-mini-stat">
-                    <div class="sm-mini-label">Toplam Nakit</div>
+                    <div class="sm-mini-label"><i class="bi bi-cash-stack me-1 text-success"></i>Nakit</div>
                     <div class="sm-mini-value text-success">@Model.Sum(t => t.CashAmount).ToString("N2") ₺</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="sm-mini-stat">
-                    <div class="sm-mini-label">Toplam Kart</div>
+                    <div class="sm-mini-label"><i class="bi bi-credit-card me-1 text-info"></i>Kart</div>
                     <div class="sm-mini-value text-info">@Model.Sum(t => t.CardAmount).ToString("N2") ₺</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="sm-mini-stat">
-                    <div class="sm-mini-label">Toplam E-Ticaret</div>
+                    <div class="sm-mini-label"><i class="bi bi-globe2 me-1 text-warning"></i>E-Ticaret</div>
                     <div class="sm-mini-value text-warning">@Model.Sum(t => t.ECommerceAmount).ToString("N2") ₺</div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
                 <div class="sm-mini-stat">
-                    <div class="sm-mini-label">Genel Toplam</div>
-                    <div class="sm-mini-value text-white fw-bold">@total.ToString("N2") ₺</div>
+                    <div class="sm-mini-label"><i class="bi bi-graph-up-arrow me-1 text-white"></i>Toplam</div>
+                    <div class="sm-mini-value text-white fw-bold fs-5">@Model.Sum(t => t.TotalAmount).ToString("N2") ₺</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="sm-section-card">
-        <div class="table-responsive">
-            <table class="table sm-table align-middle">
-                <thead>
-                    <tr>
-                        <th><i class="bi bi-calendar3 me-1"></i>Tarih</th>
-                        <th class="text-end"><i class="bi bi-cash-stack me-1"></i>Nakit</th>
-                        <th class="text-end"><i class="bi bi-credit-card me-1"></i>Kart</th>
-                        <th class="text-end d-none d-md-table-cell"><i class="bi bi-globe2 me-1"></i>E-Ticaret</th>
-                        <th class="text-end"><i class="bi bi-graph-up-arrow me-1"></i>Toplam</th>
-                        <th class="text-center d-none d-sm-table-cell">Notlar</th>
-                        <th class="text-center">&nbsp;</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var t in Model)
-                    {
-                        <tr>
-                            <td class="fw-semibold">@t.RecordDate.ToLocalTime().ToString("dd.MM.yyyy")</td>
-                            <td class="text-end text-success">@t.CashAmount.ToString("N2") ₺</td>
-                            <td class="text-end text-info">@t.CardAmount.ToString("N2") ₺</td>
-                            <td class="text-end text-warning d-none d-md-table-cell">@t.ECommerceAmount.ToString("N2") ₺</td>
-                            <td class="text-end fw-bold text-white">@t.TotalAmount.ToString("N2") ₺</td>
-                            <td class="text-center text-white-50 small d-none d-sm-table-cell">
-                                @(string.IsNullOrEmpty(t.Notes) ? "–" : t.Notes)
-                            </td>
-                            <td class="text-center">
-                                <form method="post" action="/DailyTurnover/Delete/@t.Id"
-                                      onsubmit="return confirmDeleteTurnover(event)">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn sm-btn-icon-sm sm-btn-icon-danger" title="Sil">
-                                        <i class="bi bi-trash3-fill"></i>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+    <!-- ── Records Grouped by Month ─────────────────────────────────────────── -->
+    @foreach (var grp in grouped)
+    {
+        var monthTotal = grp.Sum(t => t.TotalAmount);
+        var monthCash  = grp.Sum(t => t.CashAmount);
+        var monthCard  = grp.Sum(t => t.CardAmount);
+        var monthEcom  = grp.Sum(t => t.ECommerceAmount);
+        var monthLabel = $"{trMonths[grp.Key.Month]} {grp.Key.Year}";
+
+        <div class="sm-section-card mb-3">
+            <!-- Month Header -->
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2"
+                 style="cursor:pointer" onclick="toggleMonth('@grp.Key.Year@grp.Key.Month')">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-calendar-month text-info"></i>
+                    <span class="fw-bold fs-6">@monthLabel</span>
+                    <span class="badge sm-badge-month ms-1">@grp.Count() gün</span>
+                </div>
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <span class="text-white-50 small d-none d-md-inline">
+                        Nakit <span class="text-success fw-semibold">@monthCash.ToString("N2") ₺</span> ·
+                        Kart <span class="text-info fw-semibold">@monthCard.ToString("N2") ₺</span> ·
+                        E-Tic <span class="text-warning fw-semibold">@monthEcom.ToString("N2") ₺</span>
+                    </span>
+                    <span class="fw-bold text-white">@monthTotal.ToString("N2") ₺</span>
+                    <i class="bi bi-chevron-down text-white-50 sm-chevron" id="chev-@grp.Key.Year@grp.Key.Month"></i>
+                </div>
+            </div>
+
+            <!-- Month Records Table (collapsible) -->
+            <div id="month-@grp.Key.Year@grp.Key.Month">
+                <div class="table-responsive">
+                    <table class="table sm-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th><i class="bi bi-calendar3 me-1"></i>Tarih</th>
+                                <th class="text-end text-success">Nakit</th>
+                                <th class="text-end text-info">Kart</th>
+                                <th class="text-end text-warning d-none d-md-table-cell">E-Ticaret</th>
+                                <th class="text-end">Toplam</th>
+                                <th class="text-center d-none d-sm-table-cell">Notlar</th>
+                                <th class="text-center">&nbsp;</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var t in grp.OrderByDescending(x => x.RecordDate))
+                            {
+                                var isToday = t.RecordDate.Date == DateTime.UtcNow.Date;
+                                var isPast  = t.RecordDate.Date < DateTime.UtcNow.Date;
+                                <tr class="@(isToday ? "sm-row-today" : "")">
+                                    <td>
+                                        <span class="fw-semibold">@t.RecordDate.ToLocalTime().ToString("dd.MM.yyyy")</span>
+                                        @if (isToday)
+                                        {
+                                            <span class="badge sm-badge-today ms-1">Bugün</span>
+                                        }
+                                        else if (isPast)
+                                        {
+                                            <span class="badge sm-badge-past ms-1">
+                                                <i class="bi bi-clock-history me-1"></i>Geçmiş
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="text-end text-success">@t.CashAmount.ToString("N2") ₺</td>
+                                    <td class="text-end text-info">@t.CardAmount.ToString("N2") ₺</td>
+                                    <td class="text-end text-warning d-none d-md-table-cell">@t.ECommerceAmount.ToString("N2") ₺</td>
+                                    <td class="text-end fw-bold text-white">@t.TotalAmount.ToString("N2") ₺</td>
+                                    <td class="text-center text-white-50 small d-none d-sm-table-cell">
+                                        @(string.IsNullOrEmpty(t.Notes) ? "–" : t.Notes)
+                                    </td>
+                                    <td class="text-center">
+                                        <form method="post" action="/DailyTurnover/Delete/@t.Id"
+                                              onsubmit="return confirmDeleteTurnover(event)">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn sm-btn-icon-sm sm-btn-icon-danger" title="Sil">
+                                                <i class="bi bi-trash3-fill"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <!-- Month subtotal row -->
+                        <tfoot>
+                            <tr class="sm-subtotal-row">
+                                <td class="fw-bold text-white-50 small">@monthLabel Toplamı</td>
+                                <td class="text-end fw-bold text-success">@monthCash.ToString("N2") ₺</td>
+                                <td class="text-end fw-bold text-info">@monthCard.ToString("N2") ₺</td>
+                                <td class="text-end fw-bold text-warning d-none d-md-table-cell">@monthEcom.ToString("N2") ₺</td>
+                                <td class="text-end fw-bold text-white">@monthTotal.ToString("N2") ₺</td>
+                                <td class="d-none d-sm-table-cell"></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
         </div>
-    </div>
+    }
 }
 
 @section Scripts {
 <script>
+    // ── Tab switch ───────────────────────────────────────────────────────────
+    function switchTab(tab) {
+        const isMonth = tab === 'month';
+        document.getElementById('filterFormMonth').classList.toggle('d-none', !isMonth);
+        document.getElementById('filterFormRange').classList.toggle('d-none',  isMonth);
+        document.getElementById('tab-month').classList.toggle('active',  isMonth);
+        document.getElementById('tab-range').classList.toggle('active', !isMonth);
+    }
+
+    // ── Month collapse ───────────────────────────────────────────────────────
+    function toggleMonth(key) {
+        const body  = document.getElementById(`month-${key}`);
+        const chev  = document.getElementById(`chev-${key}`);
+        const isOpen = !body.classList.contains('d-none');
+        body.classList.toggle('d-none', isOpen);
+        chev.classList.toggle('bi-chevron-down', !isOpen);
+        chev.classList.toggle('bi-chevron-right', isOpen);
+    }
+
+    // ── Delete confirm ───────────────────────────────────────────────────────
     async function confirmDeleteTurnover(evt) {
         evt.preventDefault();
         const form = evt.target;
@@ -116,5 +336,33 @@ else
         });
         if (result.isConfirmed) form.submit();
     }
+
+    // ── Geçmiş Z Raporu butonu – tarih seçtirip Create'e yönlendir ──────────
+    document.getElementById('btnGeçmisZ')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const { value: dateVal } = await Swal.fire({
+            title: '📅 Geçmiş Z Raporu',
+            html: `<label class="form-label text-white-50 small">Hangi tarihe ait Z raporunu gireceksiniz?</label>
+                   <input id="swal-date" type="date" class="form-control sm-input mt-1"
+                          max="${new Date().toISOString().split('T')[0]}"
+                          value="${new Date(Date.now() - 86400000).toISOString().split('T')[0]}" />`,
+            background: '#1a2035',
+            color: '#e2e8f0',
+            confirmButtonText: '<i class="bi bi-arrow-right me-1"></i>Devam Et',
+            confirmButtonColor: '#0ea5e9',
+            showCancelButton: true,
+            cancelButtonText: 'İptal',
+            cancelButtonColor: '#334155',
+            focusConfirm: false,
+            preConfirm: () => {
+                const d = document.getElementById('swal-date').value;
+                if (!d) { Swal.showValidationMessage('Lütfen bir tarih seçin.'); return false; }
+                return d;
+            }
+        });
+        if (dateVal) {
+            window.location.href = `/DailyTurnover/Create?date=${dateVal}`;
+        }
+    });
 </script>
 }

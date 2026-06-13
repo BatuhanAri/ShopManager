@@ -1,26 +1,58 @@
 @model ShopManager.Models.DailyTurnover
 @{
-    ViewData["Title"] = "Günü Kapat";
+    ViewData["Title"] = "Ciro Kaydı Ekle";
+    var isHistorical = Model.RecordDate.Date < DateTime.UtcNow.Date;
+    var dateStr = Model.RecordDate == default
+        ? DateTime.UtcNow.ToString("yyyy-MM-dd")
+        : Model.RecordDate.ToString("yyyy-MM-dd");
 }
 
 <div class="row justify-content-center">
     <div class="col-12 col-md-8 col-lg-6">
         <div class="sm-form-card">
-            <h1 class="sm-section-title mb-1">
-                <i class="bi bi-cash-coin me-2 text-info"></i>Günü Kapat
-            </h1>
-            <p class="text-white-50 small mb-4">Günün cirosunu girerek kayıt oluşturun.</p>
+
+            <!-- Header -->
+            @if (isHistorical)
+            {
+                <div class="sm-historical-badge mb-3">
+                    <i class="bi bi-clock-history me-2"></i>Geçmiş Z Raporu Girişi
+                </div>
+                <h1 class="sm-section-title mb-1">
+                    <i class="bi bi-calendar-check me-2 text-warning"></i>Geçmiş Ciro Ekle
+                </h1>
+                <p class="text-white-50 small mb-4">
+                    Geçmişe yönelik Z raporu verilerini girerek kayıt oluşturun.
+                </p>
+            }
+            else
+            {
+                <h1 class="sm-section-title mb-1">
+                    <i class="bi bi-cash-coin me-2 text-info"></i>Günü Kapat
+                </h1>
+                <p class="text-white-50 small mb-4">
+                    Günün cirosunu girerek kayıt oluşturun.
+                    <span class="text-white-50">Geçmiş tarih seçerek eski Z raporlarını da ekleyebilirsiniz.</span>
+                </p>
+            }
 
             <form asp-action="Create" method="post">
                 @Html.AntiForgeryToken()
 
                 <!-- Date -->
                 <div class="mb-3">
-                    <label asp-for="RecordDate" class="form-label sm-label"></label>
+                    <label asp-for="RecordDate" class="form-label sm-label">
+                        <i class="bi bi-calendar3 me-1"></i>Tarih
+                    </label>
                     <input asp-for="RecordDate"
                            id="RecordDate"
                            type="date"
-                           class="form-control sm-input" />
+                           class="form-control sm-input @(isHistorical ? "sm-input-historical" : "")"
+                           max="@DateTime.UtcNow.ToString("yyyy-MM-dd")"
+                           value="@dateStr" />
+                    <div class="form-text text-white-50 mt-1">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Geçmiş bir tarih seçerek eski Z raporlarını girebilirsiniz.
+                    </div>
                     <span asp-validation-for="RecordDate" class="text-danger small"></span>
                 </div>
 
@@ -62,15 +94,18 @@
 
                 <!-- Notes -->
                 <div class="mb-4">
-                    <label asp-for="Notes" class="form-label sm-label"></label>
+                    <label asp-for="Notes" class="form-label sm-label">
+                        <i class="bi bi-sticky me-1"></i>Notlar
+                    </label>
                     <textarea asp-for="Notes" class="form-control sm-input" rows="2"
-                              placeholder="Özel gün, etkinlik, indirim vb. notlar…"></textarea>
+                              placeholder="Özel gün, etkinlik, indirim, yoğunluk durumu…"></textarea>
                     <span asp-validation-for="Notes" class="text-danger small"></span>
                 </div>
 
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn sm-btn-add flex-fill py-3 fs-5">
-                        <i class="bi bi-check-circle me-2"></i>Kaydet
+                    <button type="submit" class="btn @(isHistorical ? "sm-btn-historical" : "sm-btn-add") flex-fill py-3 fs-5">
+                        <i class="bi bi-check-circle me-2"></i>
+                        @(isHistorical ? "Geçmiş Kaydı Ekle" : "Kaydet")
                     </button>
                     <a href="/DailyTurnover" class="btn sm-btn-outline flex-fill py-3">
                         <i class="bi bi-x-circle me-2"></i>Vazgeç
@@ -84,28 +119,46 @@
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 <script>
-    // Set today's date as default
     document.addEventListener('DOMContentLoaded', () => {
-        const dateInput = document.getElementById('RecordDate');
+        const dateInput  = document.getElementById('RecordDate');
+        const cashEl     = document.getElementById('CashAmount');
+        const cardEl     = document.getElementById('CardAmount');
+        const ecomEl     = document.getElementById('ECommerceAmount');
+        const totalEl    = document.getElementById('liveTotalPreview');
+        const submitBtn  = document.querySelector('button[type=submit]');
+
+        // Set today if no date value
         if (dateInput && !dateInput.value) {
-            const today = new Date().toISOString().split('T')[0];
-            dateInput.value = today;
+            dateInput.value = new Date().toISOString().split('T')[0];
         }
 
-        // Live total preview
-        const cashEl  = document.getElementById('CashAmount');
-        const cardEl  = document.getElementById('CardAmount');
-        const ecomEl  = document.getElementById('ECommerceAmount');
-        const totalEl = document.getElementById('liveTotalPreview');
+        // Dynamic submit button text based on selected date
+        dateInput?.addEventListener('change', () => {
+            const selected = new Date(dateInput.value + 'T00:00:00');
+            const today    = new Date(); today.setHours(0,0,0,0);
+            const isPast   = selected < today;
+            submitBtn.innerHTML = isPast
+                ? '<i class="bi bi-check-circle me-2"></i>Geçmiş Kaydı Ekle'
+                : '<i class="bi bi-check-circle me-2"></i>Kaydet';
+            submitBtn.className = isPast
+                ? 'btn sm-btn-historical flex-fill py-3 fs-5'
+                : 'btn sm-btn-add flex-fill py-3 fs-5';
+            dateInput.className = isPast
+                ? 'form-control sm-input sm-input-historical'
+                : 'form-control sm-input';
+        });
 
+        // Live total
         function updateTotal() {
-            const c = parseFloat(cashEl.value)  || 0;
-            const k = parseFloat(cardEl.value)  || 0;
-            const e = parseFloat(ecomEl.value)  || 0;
+            const c = parseFloat(cashEl.value) || 0;
+            const k = parseFloat(cardEl.value) || 0;
+            const e = parseFloat(ecomEl.value) || 0;
             totalEl.textContent = (c + k + e).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺';
         }
-
         [cashEl, cardEl, ecomEl].forEach(el => el?.addEventListener('input', updateTotal));
+
+        // Trigger change on load for pre-set historical dates
+        dateInput?.dispatchEvent(new Event('change'));
     });
 </script>
 }
