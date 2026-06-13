@@ -1,0 +1,67 @@
+@model ShopManager.Models.Stock
+@{
+    ViewData["Title"] = "Yeni Stok Ürünü";
+}
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-7 col-lg-5">
+        <div class="sm-form-card">
+            <h1 class="sm-section-title mb-4">
+                <i class="bi bi-plus-circle me-2 text-info"></i>Yeni Stok Ürünü
+            </h1>
+
+            <form asp-action="Create" method="post">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-3">
+                    <label asp-for="ItemName" class="form-label sm-label"></label>
+                    <input asp-for="ItemName" class="form-control sm-input" placeholder="Örn: Çilek, Waffle Hamuru…" />
+                    <span asp-validation-for="ItemName" class="text-danger small"></span>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-8">
+                        <label asp-for="CurrentQuantity" class="form-label sm-label"></label>
+                        <input asp-for="CurrentQuantity" type="number" step="0.001" min="0"
+                               class="form-control sm-input" placeholder="0.000" />
+                        <span asp-validation-for="CurrentQuantity" class="text-danger small"></span>
+                    </div>
+                    <div class="col-4">
+                        <label asp-for="Unit" class="form-label sm-label"></label>
+                        <select asp-for="Unit" class="form-select sm-input">
+                            <option value="">Seç</option>
+                            <option>Kg</option>
+                            <option>Litre</option>
+                            <option>Adet</option>
+                            <option>Paket</option>
+                            <option>Gr</option>
+                            <option>Ml</option>
+                        </select>
+                        <span asp-validation-for="Unit" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="CriticalLimit" class="form-label sm-label"></label>
+                    <input asp-for="CriticalLimit" type="number" step="0.001" min="0"
+                           class="form-control sm-input" placeholder="0.000" />
+                    <div class="form-text text-white-50">Bu değerin altında kırmızı uyarı verilir.</div>
+                    <span asp-validation-for="CriticalLimit" class="text-danger small"></span>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn sm-btn-add flex-fill py-3">
+                        <i class="bi bi-check-circle me-2"></i>Kaydet
+                    </button>
+                    <a href="/Stock" class="btn sm-btn-outline flex-fill py-3">
+                        <i class="bi bi-x-circle me-2"></i>Vazgeç
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

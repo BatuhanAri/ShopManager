@@ -1,0 +1,120 @@
+@model IEnumerable<ShopManager.Models.DailyTurnover>
+@{
+    ViewData["Title"] = "Günlük Ciro Kayıtları";
+    var total = Model.Sum(t => t.TotalAmount);
+}
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+    <h1 class="sm-page-title mb-0">
+        <i class="bi bi-cash-coin me-2 text-info"></i>Günlük Ciro Kayıtları
+    </h1>
+    <a href="/DailyTurnover/Create" class="btn sm-btn-add px-4">
+        <i class="bi bi-plus-lg me-2"></i>Günü Kapat
+    </a>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="sm-empty-state mt-5">
+        <i class="bi bi-cash-coin fs-1 text-white-50 d-block mb-3"></i>
+        <p class="text-white-50">Henüz ciro kaydı yok.</p>
+        <a href="/DailyTurnover/Create" class="btn sm-btn-add px-4">
+            <i class="bi bi-plus-lg me-2"></i>İlk Kaydı Ekle
+        </a>
+    </div>
+}
+else
+{
+    <div class="sm-section-card mb-4">
+        <div class="row g-2 text-center">
+            <div class="col-6 col-md-3">
+                <div class="sm-mini-stat">
+                    <div class="sm-mini-label">Toplam Nakit</div>
+                    <div class="sm-mini-value text-success">@Model.Sum(t => t.CashAmount).ToString("N2") ₺</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="sm-mini-stat">
+                    <div class="sm-mini-label">Toplam Kart</div>
+                    <div class="sm-mini-value text-info">@Model.Sum(t => t.CardAmount).ToString("N2") ₺</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="sm-mini-stat">
+                    <div class="sm-mini-label">Toplam E-Ticaret</div>
+                    <div class="sm-mini-value text-warning">@Model.Sum(t => t.ECommerceAmount).ToString("N2") ₺</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="sm-mini-stat">
+                    <div class="sm-mini-label">Genel Toplam</div>
+                    <div class="sm-mini-value text-white fw-bold">@total.ToString("N2") ₺</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sm-section-card">
+        <div class="table-responsive">
+            <table class="table sm-table align-middle">
+                <thead>
+                    <tr>
+                        <th><i class="bi bi-calendar3 me-1"></i>Tarih</th>
+                        <th class="text-end"><i class="bi bi-cash-stack me-1"></i>Nakit</th>
+                        <th class="text-end"><i class="bi bi-credit-card me-1"></i>Kart</th>
+                        <th class="text-end d-none d-md-table-cell"><i class="bi bi-globe2 me-1"></i>E-Ticaret</th>
+                        <th class="text-end"><i class="bi bi-graph-up-arrow me-1"></i>Toplam</th>
+                        <th class="text-center d-none d-sm-table-cell">Notlar</th>
+                        <th class="text-center">&nbsp;</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@t.RecordDate.ToLocalTime().ToString("dd.MM.yyyy")</td>
+                            <td class="text-end text-success">@t.CashAmount.ToString("N2") ₺</td>
+                            <td class="text-end text-info">@t.CardAmount.ToString("N2") ₺</td>
+                            <td class="text-end text-warning d-none d-md-table-cell">@t.ECommerceAmount.ToString("N2") ₺</td>
+                            <td class="text-end fw-bold text-white">@t.TotalAmount.ToString("N2") ₺</td>
+                            <td class="text-center text-white-50 small d-none d-sm-table-cell">
+                                @(string.IsNullOrEmpty(t.Notes) ? "–" : t.Notes)
+                            </td>
+                            <td class="text-center">
+                                <form method="post" action="/DailyTurnover/Delete/@t.Id"
+                                      onsubmit="return confirmDeleteTurnover(event)">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn sm-btn-icon-sm sm-btn-icon-danger" title="Sil">
+                                        <i class="bi bi-trash3-fill"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@section Scripts {
+<script>
+    async function confirmDeleteTurnover(evt) {
+        evt.preventDefault();
+        const form = evt.target;
+        const result = await Swal.fire({
+            title: 'Kaydı Sil?',
+            text: 'Bu ciro kaydı kalıcı olarak silinecek.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Evet, Sil',
+            confirmButtonColor: '#dc2626',
+            cancelButtonText: 'İptal',
+            cancelButtonColor: '#334155',
+            background: '#1a2035',
+            color: '#e2e8f0'
+        });
+        if (result.isConfirmed) form.submit();
+    }
+</script>
+}

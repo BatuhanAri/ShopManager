@@ -1,0 +1,245 @@
+@model IEnumerable<ShopManager.Models.Stock>
+@{
+    ViewData["Title"] = "Stok Yönetimi";
+}
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+    <h1 class="sm-page-title mb-0">
+        <i class="bi bi-box-seam me-2 text-info"></i>Stok Yönetimi
+    </h1>
+    <a href="/Stock/Create" class="btn sm-btn-add px-4">
+        <i class="bi bi-plus-lg me-2"></i>Yeni Ürün Ekle
+    </a>
+</div>
+
+<!-- Stock Grid -->
+<div class="row g-3" id="stockGrid">
+    @foreach (var item in Model)
+    {
+        <div class="col-12 col-sm-6 col-xl-4" id="stock-card-@item.Id">
+            <div class="sm-stock-card @(item.IsCritical ? "sm-stock-card-critical" : "")">
+                <div class="d-flex align-items-start justify-content-between mb-2">
+                    <div>
+                        <h3 class="sm-stock-name">@item.ItemName</h3>
+                        <span class="sm-stock-unit text-white-50">@item.Unit</span>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <a href="/Stock/Edit/@item.Id" class="btn sm-btn-icon-sm" title="Düzenle">
+                            <i class="bi bi-pencil-fill"></i>
+                        </a>
+                        <form method="post" action="/Stock/Delete/@item.Id" class="d-inline"
+                              onsubmit="return confirmDelete(event, '@item.ItemName')">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn sm-btn-icon-sm sm-btn-icon-danger" title="Sil">
+                                <i class="bi bi-trash3-fill"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Quantity Display -->
+                <div class="sm-qty-display" id="qty-display-@item.Id">
+                    <span class="sm-qty-value @(item.IsCritical ? "text-danger" : "text-white")"
+                          id="qty-val-@item.Id">@item.CurrentQuantity.ToString("G29")</span>
+                    <span class="sm-qty-unit">@item.Unit</span>
+                    @if (item.IsCritical)
+                    {
+                        <i class="bi bi-exclamation-triangle-fill text-warning ms-2" title="Kritik seviye!"></i>
+                    }
+                </div>
+
+                <div class="text-white-50 small mb-3">
+                    Kritik limit: <span class="text-warning">@item.CriticalLimit.ToString("G29") @item.Unit</span>
+                </div>
+
+                <!-- + / - Buttons -->
+                <div class="d-flex gap-2">
+                    <button class="btn sm-btn-minus flex-fill py-2"
+                            onclick="openAdjustModal(@item.Id, '@item.ItemName', '@item.Unit', -1)"
+                            title="Çıkar">
+                        <i class="bi bi-dash-lg me-1"></i><span class="fw-bold">Çıkar</span>
+                    </button>
+                    <button class="btn sm-btn-plus flex-fill py-2"
+                            onclick="openAdjustModal(@item.Id, '@item.ItemName', '@item.Unit', 1)"
+                            title="Ekle">
+                        <i class="bi bi-plus-lg me-1"></i><span class="fw-bold">Ekle</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (!Model.Any())
+{
+    <div class="sm-empty-state mt-5">
+        <i class="bi bi-box-seam fs-1 text-white-50 d-block mb-3"></i>
+        <p class="text-white-50">Henüz stok kalemi yok.</p>
+        <a href="/Stock/Create" class="btn sm-btn-add px-4">
+            <i class="bi bi-plus-lg me-2"></i>İlk Ürünü Ekle
+        </a>
+    </div>
+}
+
+@section Scripts {
+<script>
+    // ── AJAX Adjust ──────────────────────────────────────────────────────────
+    let _currentId   = 0;
+    let _currentName = '';
+    let _currentUnit = '';
+    let _direction   = 1; // +1 add | -1 remove
+
+    function openAdjustModal(id, name, unit, direction) {
+        _currentId   = id;
+        _currentName = name;
+        _currentUnit = unit;
+        _direction   = direction;
+
+        const isAdd  = direction > 0;
+        const icon   = isAdd ? '➕' : '➖';
+        const title  = isAdd ? `${name} – Ekle` : `${name} – Çıkar`;
+        const color  = isAdd ? '#22c55e' : '#ef4444';
+        const label  = isAdd ? 'Eklenecek Miktar' : 'Çıkarılacak Miktar';
+
+        Swal.fire({
+            title: title,
+            html: `
+                <div class="text-start mb-3">
+                    <label class="form-label fw-semibold text-white" for="swal-qty">${icon} ${label} (${unit})</label>
+                    <input id="swal-qty"
+                           class="form-control form-control-lg text-center fw-bold"
+                           type="number" min="0.001" step="0.001"
+                           placeholder="0.000"
+                           style="font-size:2rem; background:#1e2433; color:#fff; border-color:#334155;" />
+                </div>`,
+            background: '#1a2035',
+            color: '#e2e8f0',
+            confirmButtonText: isAdd ? '<i class="bi bi-plus-circle me-1"></i>Ekle' : '<i class="bi bi-dash-circle me-1"></i>Çıkar',
+            confirmButtonColor: color,
+            showCancelButton: true,
+            cancelButtonText: 'İptal',
+            cancelButtonColor: '#334155',
+            focusConfirm: false,
+            didOpen: () => {
+                document.getElementById('swal-qty').focus();
+                document.getElementById('swal-qty').addEventListener('keydown', e => {
+                    if (e.key === 'Enter') Swal.clickConfirm();
+                });
+            },
+            preConfirm: () => {
+                const val = parseFloat(document.getElementById('swal-qty').value);
+                if (!val || val <= 0) {
+                    Swal.showValidationMessage('Lütfen geçerli bir miktar girin.');
+                    return false;
+                }
+                return val;
+            }
+        }).then(result => {
+            if (result.isConfirmed && result.value) {
+                submitAdjust(result.value);
+            }
+        });
+    }
+
+    async function submitAdjust(amount) {
+        const delta = _direction * amount;
+
+        try {
+            const resp = await fetch('/Stock/AdjustQuantity', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getAntiForgeryToken()
+                },
+                body: JSON.stringify({ id: _currentId, delta: delta })
+            });
+
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                Swal.fire({ icon: 'error', title: 'Hata!', text: data.message || 'Bir hata oluştu.', background: '#1a2035', color: '#e2e8f0' });
+                return;
+            }
+
+            // ── Update DOM ──────────────────────────────────────────────
+            const qtyEl  = document.getElementById(`qty-val-${data.id}`);
+            const cardEl = document.getElementById(`stock-card-${data.id}`);
+
+            if (qtyEl) {
+                qtyEl.textContent = formatQty(data.currentQuantity);
+                qtyEl.className = data.isCritical ? 'sm-qty-value text-danger' : 'sm-qty-value text-white';
+            }
+
+            // Add/remove critical card class
+            const innerCard = cardEl?.querySelector('.sm-stock-card');
+            if (innerCard) {
+                if (data.isCritical) innerCard.classList.add('sm-stock-card-critical');
+                else                 innerCard.classList.remove('sm-stock-card-critical');
+            }
+
+            // ── SweetAlert2 Toast ────────────────────────────────────────
+            const isAdd   = delta > 0;
+            const absAmt  = Math.abs(delta);
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+                background: isAdd ? '#14532d' : '#7f1d1d',
+                color: '#ffffff',
+                iconColor: '#ffffff'
+            });
+
+            Toast.fire({
+                icon: isAdd ? 'success' : 'info',
+                title: isAdd
+                    ? `✅ ${formatQty(absAmt)} ${data.unit} <strong>${data.itemName}</strong> eklendi`
+                    : `📦 ${formatQty(absAmt)} ${data.unit} <strong>${data.itemName}</strong> çıkarıldı`,
+
+            });
+
+            // Critical warning toast
+            if (data.isCritical) {
+                setTimeout(() => {
+                    Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 4000, timerProgressBar: true, background: '#7c2d12', color: '#fff' })
+                        .fire({ icon: 'warning', title: `⚠️ ${data.itemName} kritik seviyede!` });
+                }, 500);
+            }
+
+        } catch (err) {
+            Swal.fire({ icon: 'error', title: 'Bağlantı Hatası', text: err.message, background: '#1a2035', color: '#e2e8f0' });
+        }
+    }
+
+    function formatQty(n) {
+        // Remove trailing zeros
+        return parseFloat(n.toFixed(3)).toString();
+    }
+
+    function getAntiForgeryToken() {
+        return document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+    }
+
+    async function confirmDelete(evt, name) {
+        evt.preventDefault();
+        const form = evt.target;
+        const result = await Swal.fire({
+            title: 'Emin misiniz?',
+            html: `<strong>${name}</strong> stok kaydı silinecek. Bu işlem geri alınamaz.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Evet, Sil',
+            confirmButtonColor: '#dc2626',
+            cancelButtonText: 'İptal',
+            cancelButtonColor: '#334155',
+            background: '#1a2035',
+            color: '#e2e8f0'
+        });
+        if (result.isConfirmed) form.submit();
+    }
+</script>
+
+<!-- Hidden antiforgery for AJAX -->
+<form id="__AjaxAntiForgery">@Html.AntiForgeryToken()</form>
+}
