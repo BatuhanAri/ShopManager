@@ -8,6 +8,7 @@ public class AppDbContext : DbContext
 
     public DbSet<Stock> Stocks { get; set; }
     public DbSet<DailyTurnover> DailyTurnovers { get; set; }
+    public DbSet<ZReport> ZReports { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

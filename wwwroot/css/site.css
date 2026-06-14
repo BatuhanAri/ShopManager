@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   ShopManager – EREN Dondurma&Waffle
+   ShopManager – Shop Manager
    Custom CSS Design System
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -502,6 +502,29 @@ a:hover { color: #7dd3fc; }
 .sm-filter-tabs .nav-link:hover:not(.active) {
   background: var(--sm-surface-2);
   color: var(--sm-text);
+}
+
+/* Main content tabs */
+.sm-main-tabs {
+  border-bottom: 1px solid var(--sm-border);
+}
+.sm-main-tabs .nav-link {
+  color: #94a3b8;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: .75rem 1.25rem;
+  font-weight: 600;
+  background: transparent;
+  transition: var(--sm-transition);
+}
+.sm-main-tabs .nav-link.active {
+  color: var(--sm-accent);
+  border-bottom: 2px solid var(--sm-accent) !important;
+  background: transparent;
+}
+.sm-main-tabs .nav-link:hover:not(.active) {
+  color: var(--sm-text);
+  border-bottom: 2px solid var(--sm-border);
 }
 
 /* Month badge inside group header */

@@ -1,4 +1,4 @@
-# 🍦 ShopManager — EREN Dondurma & Waffle
+# 🍦 ShopManager — Shop Manager
 
 > Manuel stok ve günlük ciro takip sistemi.  
 > ASP.NET Core 8 MVC · PostgreSQL · Bootstrap 5 · SweetAlert2

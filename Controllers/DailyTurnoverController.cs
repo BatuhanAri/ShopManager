@@ -67,6 +67,10 @@ public class DailyTurnoverController : Controller
             .OrderByDescending(t => t.RecordDate)
             .ToListAsync();
 
+        ViewBag.ZReports = await _db.ZReports
+            .OrderByDescending(z => z.ReportDate)
+            .ToListAsync();
+
         return View(records);
     }
 
@@ -95,7 +99,7 @@ public class DailyTurnoverController : Controller
 
         var isHistorical = turnover.RecordDate.Date < DateTime.UtcNow.Date;
         TempData["Success"] = isHistorical
-            ? $"{turnover.RecordDate:dd.MM.yyyy} tarihli geçmiş Z raporu kaydedildi."
+            ? $"{turnover.RecordDate:dd.MM.yyyy} tarihli geçmiş ciro kaydı kaydedildi."
             : "Günlük ciro kaydedildi.";
 
         return RedirectToAction(nameof(Index));
@@ -112,6 +116,44 @@ public class DailyTurnoverController : Controller
         _db.DailyTurnovers.Remove(record);
         await _db.SaveChangesAsync();
         TempData["Success"] = "Kayıt silindi.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // POST: /DailyTurnover/CreateZReport
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateZReport(DateTime date, decimal price)
+    {
+        if (price <= 0)
+        {
+            TempData["Success"] = "Hata: Geçersiz fiyat.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var zReport = new ZReport
+        {
+            ReportDate = DateTime.SpecifyKind(date.Date, DateTimeKind.Utc),
+            Price = price
+        };
+
+        _db.ZReports.Add(zReport);
+        await _db.SaveChangesAsync();
+
+        TempData["Success"] = $"{zReport.ReportDate:dd.MM.yyyy} tarihli Z raporu kaydedildi.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // POST: /DailyTurnover/DeleteZReport/5
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteZReport(int id)
+    {
+        var record = await _db.ZReports.FindAsync(id);
+        if (record == null) return NotFound();
+
+        _db.ZReports.Remove(record);
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Z raporu kaydı silindi.";
         return RedirectToAction(nameof(Index));
     }
 }

@@ -15,13 +15,13 @@
             @if (isHistorical)
             {
                 <div class="sm-historical-badge mb-3">
-                    <i class="bi bi-clock-history me-2"></i>Geçmiş Z Raporu Girişi
+                    <i class="bi bi-clock-history me-2"></i>Eski Ciro Girişi
                 </div>
                 <h1 class="sm-section-title mb-1">
-                    <i class="bi bi-calendar-check me-2 text-warning"></i>Geçmiş Ciro Ekle
+                    <i class="bi bi-calendar-check me-2 text-warning"></i>Eski Ciro Ekle
                 </h1>
                 <p class="text-white-50 small mb-4">
-                    Geçmişe yönelik Z raporu verilerini girerek kayıt oluşturun.
+                    Geçmişe yönelik ciro verilerini girerek kayıt oluşturun.
                 </p>
             }
             else
@@ -31,7 +31,7 @@
                 </h1>
                 <p class="text-white-50 small mb-4">
                     Günün cirosunu girerek kayıt oluşturun.
-                    <span class="text-white-50">Geçmiş tarih seçerek eski Z raporlarını da ekleyebilirsiniz.</span>
+                    <span class="text-white-50">Geçmiş tarih seçerek eski ciro kayıtlarını da ekleyebilirsiniz.</span>
                 </p>
             }
 
@@ -51,7 +51,7 @@
                            value="@dateStr" />
                     <div class="form-text text-white-50 mt-1">
                         <i class="bi bi-info-circle me-1"></i>
-                        Geçmiş bir tarih seçerek eski Z raporlarını girebilirsiniz.
+                        Geçmiş bir tarih seçerek eski ciro verilerini girebilirsiniz.
                     </div>
                     <span asp-validation-for="RecordDate" class="text-danger small"></span>
                 </div>

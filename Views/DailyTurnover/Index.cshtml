@@ -31,11 +31,37 @@
         <a href="/DailyTurnover/Create" class="btn sm-btn-outline px-3">
             <i class="bi bi-calendar-plus me-1"></i>Bugünü Kapat
         </a>
-        <a href="/DailyTurnover/Create" class="btn sm-btn-add px-3" id="btnGeçmisZ">
-            <i class="bi bi-clock-history me-1"></i>Geçmiş Z Raporu
+        <a href="/DailyTurnover/Create" class="btn sm-btn-outline px-3" id="btnEskiCiroEkle">
+            <i class="bi bi-clock-history me-1"></i>Eski Ciro Ekle
         </a>
+        <button type="button" class="btn sm-btn-add px-3" id="btnZReportEkle">
+            <i class="bi bi-file-earmark-plus me-1"></i>Z Raporu Ekle
+        </button>
     </div>
 </div>
+
+<form id="zReportForm" method="post" action="/DailyTurnover/CreateZReport" style="display:none;">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="date" id="zReportDate" />
+    <input type="hidden" name="price" id="zReportPrice" />
+</form>
+
+<!-- Main Tabs -->
+<ul class="nav nav-tabs sm-main-tabs mb-4" id="mainTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="turnovers-tab" data-bs-toggle="tab" data-bs-target="#turnovers-pane" type="button" role="tab">
+            <i class="bi bi-cash-coin me-2 text-info"></i>Ciro Kayıtları
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="zreports-tab" data-bs-toggle="tab" data-bs-target="#zreports-pane" type="button" role="tab">
+            <i class="bi bi-file-earmark-text me-2 text-warning"></i>Z Raporları
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="mainTabsContent">
+    <div class="tab-pane fade show active" id="turnovers-pane" role="tabpanel" aria-labelledby="turnovers-tab">
 
 <!-- ── Filter Panel ────────────────────────────────────────────────────────── -->
 <div class="sm-section-card mb-4">
@@ -296,6 +322,65 @@ else
         </div>
     }
 }
+    </div> @* Close turnovers-pane *@
+
+    <div class="tab-pane fade" id="zreports-pane" role="tabpanel" aria-labelledby="zreports-tab">
+        <div class="sm-section-card">
+            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-file-earmark-text text-warning"></i>
+                    <span class="fw-semibold">Kayıtlı Z Raporları</span>
+                </div>
+            </div>
+
+            @{
+                var zReports = ViewBag.ZReports as List<ShopManager.Models.ZReport> ?? new List<ShopManager.Models.ZReport>();
+            }
+
+            @if (!zReports.Any())
+            {
+                <div class="sm-empty-state">
+                    <i class="bi bi-file-earmark-x fs-1 text-white-50 d-block mb-3"></i>
+                    <p class="text-white-50 mb-0">Henüz kaydedilmiş Z raporu bulunamadı.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table sm-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th><i class="bi bi-calendar3 me-1"></i>Tarih</th>
+                                <th class="text-end text-warning">Fiyat</th>
+                                <th class="text-center">&nbsp;</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var z in zReports)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="fw-semibold">@z.ReportDate.ToLocalTime().ToString("dd.MM.yyyy")</span>
+                                    </td>
+                                    <td class="text-end text-warning fw-bold">@z.Price.ToString("N2") ₺</td>
+                                    <td class="text-center">
+                                        <form method="post" action="/DailyTurnover/DeleteZReport/@z.Id"
+                                              onsubmit="return confirmDeleteZReport(event)">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn sm-btn-icon-sm sm-btn-icon-danger" title="Sil">
+                                                <i class="bi bi-trash3-fill"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div> @* Close zreports-pane *@
+</div> @* Close tab-content *@
 
 @section Scripts {
 <script>
@@ -337,12 +422,31 @@ else
         if (result.isConfirmed) form.submit();
     }
 
-    // ── Geçmiş Z Raporu butonu – tarih seçtirip Create'e yönlendir ──────────
-    document.getElementById('btnGeçmisZ')?.addEventListener('click', async (e) => {
+    // ── Delete Z-Report confirm ──────────────────────────────────────────────
+    async function confirmDeleteZReport(evt) {
+        evt.preventDefault();
+        const form = evt.target;
+        const result = await Swal.fire({
+            title: 'Z Raporunu Sil?',
+            text: 'Bu Z raporu kaydı kalıcı olarak silinecek.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Evet, Sil',
+            confirmButtonColor: '#dc2626',
+            cancelButtonText: 'İptal',
+            cancelButtonColor: '#334155',
+            background: '#1a2035',
+            color: '#e2e8f0'
+        });
+        if (result.isConfirmed) form.submit();
+    }
+
+    // ── Eski Ciro Ekle butonu – tarih seçtirip Create'e yönlendir ──────────
+    document.getElementById('btnEskiCiroEkle')?.addEventListener('click', async (e) => {
         e.preventDefault();
         const { value: dateVal } = await Swal.fire({
-            title: '📅 Geçmiş Z Raporu',
-            html: `<label class="form-label text-white-50 small">Hangi tarihe ait Z raporunu gireceksiniz?</label>
+            title: '📅 Eski Ciro Girişi',
+            html: `<label class="form-label text-white-50 small">Hangi tarihe ait ciro kaydını gireceksiniz?</label>
                    <input id="swal-date" type="date" class="form-control sm-input mt-1"
                           max="${new Date().toISOString().split('T')[0]}"
                           value="${new Date(Date.now() - 86400000).toISOString().split('T')[0]}" />`,
@@ -362,6 +466,46 @@ else
         });
         if (dateVal) {
             window.location.href = `/DailyTurnover/Create?date=${dateVal}`;
+        }
+    });
+
+    // ── Z Raporu Ekle butonu – SweetAlert2 modal ile tarih ve fiyat alıp kaydet ──────────
+    document.getElementById('btnZReportEkle')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const { value: formValues } = await Swal.fire({
+            title: '📝 Z Raporu Ekle',
+            html: `
+                <div class="text-start">
+                    <label class="form-label text-white-50 small mt-2">Tarih</label>
+                    <input id="swal-z-date" type="date" class="form-control sm-input mt-1"
+                           max="${new Date().toISOString().split('T')[0]}"
+                           value="${new Date().toISOString().split('T')[0]}" />
+                    
+                    <label class="form-label text-white-50 small mt-3">Fiyat (₺)</label>
+                    <input id="swal-z-price" type="number" step="0.01" min="0.01" class="form-control sm-input mt-1"
+                           placeholder="0,00" />
+                </div>
+            `,
+            background: '#1a2035',
+            color: '#e2e8f0',
+            confirmButtonText: '<i class="bi bi-check-circle me-1"></i>Kaydet',
+            confirmButtonColor: '#0ea5e9',
+            showCancelButton: true,
+            cancelButtonText: 'İptal',
+            cancelButtonColor: '#334155',
+            focusConfirm: false,
+            preConfirm: () => {
+                const d = document.getElementById('swal-z-date').value;
+                const p = document.getElementById('swal-z-price').value;
+                if (!d) { Swal.showValidationMessage('Lütfen bir tarih seçin.'); return false; }
+                if (!p || parseFloat(p) <= 0) { Swal.showValidationMessage('Lütfen geçerli bir fiyat girin.'); return false; }
+                return { date: d, price: p };
+            }
+        });
+        if (formValues) {
+            document.getElementById('zReportDate').value = formValues.date;
+            document.getElementById('zReportPrice').value = formValues.price;
+            document.getElementById('zReportForm').submit();
         }
     });
 </script>
